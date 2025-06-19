@@ -9,6 +9,7 @@ const headers = {
 };
 
 export async function fetchNotes(search = '', page = 1): Promise<Note[]> {
+  console.log('TOKEN:', TOKEN);
   const response = await axios.get(BASE_URL, {
     headers,
     params: {
