@@ -1,44 +1,80 @@
 import axios from 'axios';
-import type { Note } from '@/types/note';
+import type { Note, NoteFormData } from '../types/note';
 
-const TOKEN = process.env.NEXT_PUBLIC_NOTEHUB_TOKEN;
-const BASE_URL = 'https://notehub-public.goit.study/api/notes';
-
-const headers = {
-  Authorization: `Bearer ${TOKEN}`,
-};
-
-export async function fetchNotes(search = '', page = 1): Promise<Note[]> {
-  const cleanSearch = typeof search === 'string' ? search.trim() : '';
-  const cleanPage = Number.isInteger(page) && page > 0 ? page : 1;
-
-  console.log('Fetching notes with:', {
-    search: cleanSearch,
-    page: cleanPage,
-    headers,
-  });
-
-  const response = await axios.get(BASE_URL, {
-    headers,
-    params: {
-      search: cleanSearch,
-      page: cleanPage,
-      perPage: 12,
-    },
-  });
-
-  return response.data.notes;
+interface NoteHubResponse {
+  notes: Note[];
+  totalPages: number;
 }
 
-export async function removeNote(id: number): Promise<Note> {
-  const response = await axios.delete(`${BASE_URL}/${id}`, { headers });
+interface NoteHubSearchParams {
+  params: {
+    search?: string;
+    page: number;
+    perPage: number;
+  };
+  headers: {
+    authorization: string;
+  };
+}
+
+const myToken = process.env.NEXT_PUBLIC_NOTEHUB_TOKEN;
+
+export async function fetchNotes(
+  query: string,
+  page: number
+): Promise<NoteHubResponse> {
+  const noteHubSearchParams: NoteHubSearchParams = {
+    params: {
+      page,
+      perPage: 12,
+    },
+    headers: {
+      authorization: `Bearer ${myToken}`,
+    },
+  };
+  if (query.trim() !== '') {
+    noteHubSearchParams.params.search = query.trim();
+  }
+  const response = await axios.get<NoteHubResponse>(
+    'https://notehub-public.goit.study/api/notes/',
+    noteHubSearchParams
+  );
   return response.data;
 }
 
-export async function createNote(
-  title: string,
-  content: string
-): Promise<Note> {
-  const response = await axios.post(BASE_URL, { title, content }, { headers });
+export async function removeNote(id: number): Promise<Note> {
+  const response = await axios.delete<Note>(
+    `https://notehub-public.goit.study/api/notes/${id}`,
+    {
+      headers: {
+        authorization: `Bearer ${myToken}`,
+      },
+    }
+  );
+  return response.data;
+}
+
+export async function createNote(note: NoteFormData): Promise<Note> {
+  const response = await axios.post<Note>(
+    'https://notehub-public.goit.study/api/notes/',
+    note,
+    {
+      headers: {
+        authorization: `Bearer ${myToken}`,
+      },
+    }
+  );
+  return response.data;
+}
+
+export async function fetchNoteById(id: number): Promise<Note> {
+  const response = await axios.get<Note>(
+    `https://notehub-public.goit.study/api/notes/${id}`,
+    {
+      headers: {
+        authorization: `Bearer ${myToken}`,
+      },
+    }
+  );
   return response.data;
 }

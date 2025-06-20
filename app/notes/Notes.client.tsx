@@ -1,55 +1,65 @@
 'use client';
-
-import { useQuery } from '@tanstack/react-query';
-import { fetchNotes } from '@/lib/api';
+import { fetchNotes } from '../../lib/api';
+import NoteList from '@/components/NoteList/NoteList';
+import NoteModal from '@/components/NoteModal/NoteModal';
+import Pagination from '@/components/Pagination/Pagination';
+import SearchBox from '@/components/SearchBox/SearchBox';
+import css from './NotesPage.module.css';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { Note } from '@/types/note';
+import { useDebounce } from 'use-debounce';
 
 export default function NotesClient() {
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [query, setQuery] = useState<string>('');
+  const [debouncedQuery] = useDebounce<string>(query, 1000);
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
 
-  const {
-    data: notes,
-    isLoading,
-    isError,
-    error,
-  } = useQuery<Note[]>({
-    queryKey: ['notes', search, page],
-    queryFn: () => fetchNotes(search, page),
+  const loadNotes = useQuery({
+    queryKey: ['Notes', debouncedQuery, currentPage],
+    queryFn: () => fetchNotes(debouncedQuery, currentPage),
+    placeholderData: keepPreviousData,
+    refetchOnMount: false,
   });
 
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const input = form.elements.namedItem('query') as HTMLInputElement;
-    setSearch(input.value);
-    setPage(1);
+  const modalOpenFn = (): void => {
+    setModalOpen(true);
   };
 
+  const modalCloseFn = (): void => {
+    setModalOpen(false);
+  };
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const onChangeQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const query = event.target.value;
+    setQuery(query);
+    setCurrentPage(1);
+  };
+
+  if (loadNotes.isError) {
+    throw new Error();
+  }
+
   return (
-    <div>
-      <h1>Notes</h1>
-
-      <form onSubmit={handleSearch}>
-        <input type="text" name="query" placeholder="Search notes..." />
-        <button type="submit">Search</button>
-      </form>
-
-      {isLoading && <p>Loading...</p>}
-      {isError && <p>Error: {error.message}</p>}
-      {notes?.length === 0 && <p>No notes found.</p>}
-
-      <ul>
-        {notes?.map((note) => (
-          <li key={note.id}>
-            <h2>{note.title}</h2>
-            <p>{note.content}</p>
-            <p>{new Date(note.createdAt).toLocaleDateString()}</p>
-            <a href={`/notes/${note.id}`}>View details</a>
-          </li>
-        ))}
-      </ul>
+    <div className={css.app}>
+      <header className={css.toolbar}>
+        <SearchBox onChange={onChangeQuery} value={query} />
+        {loadNotes.isSuccess && loadNotes.data.totalPages > 1 && (
+          <Pagination
+            pageCount={loadNotes.data.totalPages}
+            onPageChange={handlePageChange}
+            currentPage={currentPage}
+          />
+        )}
+        <button className={css.button} onClick={modalOpenFn}>
+          Create note +
+        </button>
+      </header>
+      {loadNotes.isSuccess && <NoteList notes={loadNotes.data.notes} />}
+      {modalOpen && <NoteModal onClose={modalCloseFn} />}
     </div>
   );
 }
