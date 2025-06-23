@@ -1,5 +1,3 @@
-// app/notes/page.tsx
-
 import {
   HydrationBoundary,
   dehydrate,
@@ -8,19 +6,25 @@ import {
 import { fetchNotes } from '@/lib/api';
 import NotesClient from './Notes.client';
 
-export default async function NotesPage() {
+export default async function Notes() {
+  const queryClient = new QueryClient();
   const initialQuery = '';
   const initialPage = 1;
 
-  const queryClient = new QueryClient();
+  const initialNotes = await fetchNotes(initialQuery, initialPage);
+
   await queryClient.prefetchQuery({
     queryKey: ['Notes', initialQuery, initialPage],
-    queryFn: () => fetchNotes(initialQuery, initialPage),
+    queryFn: () => Promise.resolve(initialNotes),
   });
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <NotesClient initialQuery={initialQuery} initialPage={initialPage} />
+      <NotesClient
+        initialQuery={initialQuery}
+        initialPage={initialPage}
+        initialNotes={initialNotes}
+      />
     </HydrationBoundary>
   );
 }
